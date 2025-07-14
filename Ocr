@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Driver Licence OCR with WebLLM</title>
+</head>
+<body>
+  <h2>Upload Driver Licence Image</h2>
+  <input type="file" id="imageInput" accept="image/*" />
+  <br><br>
+  <img id="preview" src="" width="300" />
+  <pre id="output"></pre>
+
+  <script type="module">
+    import * as webllm from "https://esm.sh/@mlc-ai/web-llm";
+
+    // Load the Phi-3.5 vision model (or Mixtral Vision if preferred)
+    const engine = await webllm.CreateMLCEngine("Phi-3.5-vision-instruct-q4f16_1-MLC");
+
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const output = document.getElementById("output");
+
+    imageInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      preview.src = URL.createObjectURL(file);
+      const base64Image = await fileToBase64(file);
+
+      // Clear output before processing
+      output.textContent = "Processing...";
+
+      // Prepare structured extraction prompt
+      const prompt = `You are an OCR extraction AI. Extract all details from this driver licence image and return them in structured JSON with keys: name, date_of_birth, licence_number, address, issue_date, expiry_date. If a field is not visible, return null.\n\n<image>${base64Image}</image>`;
+
+      const result = await engine.chat.completions.create({
+        messages: [
+          { role: "user", content: prompt }
+        ]
+      });
+
+      output.textContent = result.choices[0].message.content;
+    });
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+</body>
+</html>
